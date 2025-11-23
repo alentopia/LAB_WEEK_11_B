@@ -1,0 +1,73 @@
+Nama : Valen Angellina Jocelyn
+NIM : 00000097506
+
+Answer these questions based on Part 3 of the tutorial: 
+1. When a user takes a picture, that picture is stored in a path based on the given 
+URI. In which part of the code handles this? (Copy that part of the code as the 
+answer) 
+2. In your FileInfo.kt, there are 5 attributes. On the first attribute, what does the URI 
+refer to? And on the fourth attribute, what does relativePath refer to? 
+3. [Bonus] Explain the chronological order from when a user takes a picture until 
+the file is stored in the MediaStore.
+
+Answer : 
+1. Code : 
+  // Insert the image to MediaStore 
+   fun insertImageToStore(fileInfo: FileInfo?) { 
+       fileInfo?.let { 
+           insertToStore(
+	       fileInfo, 
+               mediaContentHelper.getImageContentUri(), 
+               mediaContentHelper.generateImageContentValues(it)
+		)
+	}
+}
+// ini untuk video 
+  fun insertVideoToStore(fileInfo: FileInfo?) { 
+       fileInfo?.let { 
+           insertToStore( 
+               fileInfo, 
+               mediaContentHelper.getVideoContentUri(), 
+               mediaContentHelper.generateVideoContentValues(it) 
+           ) 
+       } 
+   } 
+ 
+   // Insert the file to MediaStore 
+   // The file will be copied to the given relative path 
+   // Input Stream is used to read the file 
+   // Output Stream is used to write the file 
+   private fun insertToStore(fileInfo: FileInfo, contentUri: Uri, 
+contentValues: ContentValues) { 
+       executor.execute { 
+           val insertedUri = contentResolver.insert(contentUri, 
+contentValues) 
+           insertedUri?.let { 
+               val inputStream = 
+contentResolver.openInputStream(fileInfo.uri) 
+               val outputStream = 
+contentResolver.openOutputStream(insertedUri) 
+               IOUtils.copy(inputStream, outputStream) 
+           } 
+       } 
+   } 
+}
+
+2. Code : 
+data class FileInfo(
+    val uri: Uri, 
+    val file: File,
+    val name: String,
+    val relativePath: String,
+    val mimeType: String
+)
+
+uri : alamat aman (content://) yang menunjuk ke file dan digunakan untuk memberi izin sementara ke app lain. Jadi dia gak kasih tau alamat aslinya gitu misalnya storagenya di A, dia gak langsung merujuk ke A tapi dia buat path sendiri jadi kyk lebih aman.
+relativePath : folder tujuan di MediaStore, yaitu lokasi gambar/video akan disimpan di external storage.
+Untuk gambar → Environment.DIRECTORY_PICTURES
+Untuk video → Environment.DIRECTORY_MOVIES
+
+saat kamera mengambil foto atau video yg dipakai itu uri, untuk menulis file (yg dipake kamera). nah  klo nnti memindahkan ke gallery itu baru relativePath, dia sebagai folder tujuan di external storage
+
+3. Ketika seorang pengguna menekan tombol “Photo”, aplikasi terlebih dahulu memeriksa izin penyimpanan, lalu menjalankan fungsi openImageCapture() untuk mempersiapkan pengambilan gambar. Pada tahap ini, aplikasi membuat sebuah objek FileInfo melalui generatePhotoUri(), yang menghasilkan file kosong pada folder internal aplikasi serta URI FileProvider yang bersifat aman dan sementara. URI ini kemudian diberikan kepada kamera melalui ActivityResultContracts.TakePicture(), sehingga kamera dapat menulis file gambar ke lokasi yang ditentukan. Setelah pengguna mengambil foto dan proses kamera selesai, callback TakePicture() dipicu dan aplikasi menjalankan insertImageToStore(photoInfo). Pada tahap ini, file sementara dibaca melalui URI FileProvider dan kemudian disalin ke MediaStore menggunakan insertToStore(). Aplikasi membuat entri baru di MediaStore, mengisi metadata seperti nama file, MIME type, serta relativePath, kemudian menulis file ke lokasi penyimpanan publik seperti “Pictures/”. Setelah proses penyalinan selesai, file tersebut resmi tersimpan dalam MediaStore dan dapat terlihat pada aplikasi Gallery atau aplikasi lain yang memiliki akses ke penyimpanan eksternal.
+
